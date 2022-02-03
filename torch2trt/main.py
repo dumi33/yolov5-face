@@ -1,9 +1,9 @@
 import os
 import sys
-import cv2
+import cv2  #openCV모듈 import
 import copy
 import torch
-import argparse
+import argparse # 파이썬 내장함수 
 root_path=os.path.dirname(os.path.abspath(os.path.dirname(__file__))) # 项目根路径：获取当前路径，再上级路径
 sys.path.append(root_path)  # 将项目根路径写入系统路径
 from utils.general import check_img_size,non_max_suppression_face,scale_coords,xyxy2xywh
@@ -11,7 +11,7 @@ from utils.datasets import letterbox
 from detect_face import scale_coords_landmarks,show_results
 from torch2trt.trt_model import TrtModel
 cur_path=os.path.abspath(os.path.dirname(__file__))
-def img_process(img_path,long_side=640,stride_max=32):
+def img_process(img_path,long_side=640,stride_max=32): # 이미지 전처리
     '''
     图像预处理
     '''
@@ -27,7 +27,7 @@ def img_process(img_path,long_side=640,stride_max=32):
 
     img = letterbox(img0, new_shape=imgsz,auto=False)[0] # auto True最小矩形   False固定尺度
     # Convert
-    img = img[:, :, ::-1].transpose(2, 0, 1).copy()  # BGR to RGB, to 3x416x416
+    img = img[:, :, ::-1].transpose(2, 0, 1).copy()  # BGR to RGB, to 3x416x416 # 전치행렬 만들기 
     img = torch.from_numpy(img)
     img = img.float()  # uint8 to fp16/32
     img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -35,10 +35,10 @@ def img_process(img_path,long_side=640,stride_max=32):
         img = img.unsqueeze(0)
     return img,orgimg
 
-def img_vis(img,orgimg,pred,vis_thres = 0.6):
+def img_vis(img,orgimg,pred,vis_thres = 0.6): # 예측 가시화 
     '''
     预测可视化
-    vis_thres: 可视化阈值
+    vis_thres: 可视化阈值 # 가시화 임계값 
     '''
 
     print('img.shape: ', img.shape)
@@ -57,13 +57,13 @@ def img_vis(img,orgimg,pred,vis_thres = 0.6):
             for c in det[:, -1].unique():
                 n = (det[:, -1] == c).sum()  # detections per class
 
-            det[:, 5:15] = scale_coords_landmarks(img.shape[2:], det[:, 5:15], orgimg.shape).round()
+            det[:, 5:15] = scale_coords_landmarks(img.shape[2:], det[:, 5:15], orgimg.shape).round() # detect_face에서 정의한 함수 
 
             for j in range(det.size()[0]):
                 
                 
-                if det[j, 4].cpu().numpy() < vis_thres:
-                    no_vis_nums+=1
+                if det[j, 4].cpu().numpy() < vis_thres: # 임계값을 넘지못하면 
+                    no_vis_nums+=1 # 시각화 안된 숫자 +1 
                     continue
 
                 xywh = (xyxy2xywh(det[j, :4].view(1, 4)) / gn).view(-1).tolist()
@@ -72,16 +72,16 @@ def img_vis(img,orgimg,pred,vis_thres = 0.6):
                 class_num = det[j, 15].cpu().numpy()
                 orgimg = show_results(orgimg, xywh, conf, landmarks, class_num)
 
-    cv2.imwrite(cur_path+'/result.jpg', orgimg)
+    cv2.imwrite(cur_path+'/result.jpg', orgimg) # 변환된 이미지 저장 (저장될 파일명, 저장할 이미지)
     print('result save in '+cur_path+'/result.jpg')
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--img_path', type=str, default=cur_path+"/sample.jpg", help='img path') 
+    parser = argparse.ArgumentParser() # parser 객체 생성
+    parser.add_argument('--img_path', type=str, default=cur_path+"/sample.jpg", help='img path') # 원하는 만큼 인자 종류 추가
     parser.add_argument('--trt_path', type=str, required=True, help='trt_path') 
     parser.add_argument('--output_shape', type=list, default=[1,25200,16], help='input[1,3,640,640] ->  output[1,25200,16]') 
-    opt = parser.parse_args()
+    opt = parser.parse_args()  #주어진 인자를 파싱 
 
 
     img,orgimg=img_process(opt.img_path) 
@@ -92,7 +92,7 @@ if __name__ == '__main__':
     # Apply NMS
     pred = non_max_suppression_face(torch.from_numpy(pred), conf_thres=0.3, iou_thres=0.5)
    
-    # ============可视化================
+    # ============可视化================ (시각화)
     img_vis(img,orgimg,pred)
 
 
