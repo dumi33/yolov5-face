@@ -22,18 +22,18 @@ def load_model(weights, device):
     return model
 
 
-def scale_coords_landmarks(img1_shape, coords, img0_shape, ratio_pad=None):
-    # Rescale coords (xyxy) from img1_shape to img0_shape
-    if ratio_pad is None:  # calculate from img0_shape
+def scale_coords_landmarks(img1_shape, coords, img0_shape, ratio_pad=None): 
+    # Rescale coords (xyxy) from img1_shape to img0_shape # img1_shape 에서 img0_shape으로 좌표를 스케일 조정 
+    if ratio_pad is None:  # calculate from img0_shape  # ratio_pad가 None이라면 
         gain = min(img1_shape[0] / img0_shape[0], img1_shape[1] / img0_shape[1])  # gain  = old / new
-        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding
-    else:
-        gain = ratio_pad[0][0]
+        pad = (img1_shape[1] - img0_shape[1] * gain) / 2, (img1_shape[0] - img0_shape[0] * gain) / 2  # wh padding # pad는 [1]-[0]*gain으로 구한다.
+    else: # ratio_pad가 있다면 
+        gain = ratio_pad[0][0] # ratio_pad의 값으로 gain, pad를 정한다.
         pad = ratio_pad[1]
 
-    coords[:, [0, 2, 4, 6, 8]] -= pad[0]  # x padding
-    coords[:, [1, 3, 5, 7, 9]] -= pad[1]  # y padding
-    coords[:, :10] /= gain
+    coords[:, [0, 2, 4, 6, 8]] -= pad[0]  # x padding # 인수로 받은 coords 의 0,2,4,6,8열을 pad[0]만큼 빼준다.
+    coords[:, [1, 3, 5, 7, 9]] -= pad[1]  # y padding # 인수로 받은 coords 의 0,2,4,6,8열을 pad[1]만큼 빼준다.
+    coords[:, :10] /= gain # 인수로 받은 coords 의 0열부터 9열까지 gain으로 나눠준다.
     #clip_coords(coords, img0_shape)
     coords[:, 0].clamp_(0, img0_shape[1])  # x1
     coords[:, 1].clamp_(0, img0_shape[0])  # y1
@@ -45,20 +45,20 @@ def scale_coords_landmarks(img1_shape, coords, img0_shape, ratio_pad=None):
     coords[:, 7].clamp_(0, img0_shape[0])  # y4
     coords[:, 8].clamp_(0, img0_shape[1])  # x5
     coords[:, 9].clamp_(0, img0_shape[0])  # y5
-    return coords
+    return coords # 변환한 coords 반환 
 
 def show_results(img, xywh, conf, landmarks, class_num):
-    h,w,c = img.shape
+    h,w,c = img.shape # 이미지의 크기를 나타내는 변수 h,w,c
     tl = 1 or round(0.002 * (h + w) / 2) + 1  # line/font thickness
     x1 = int(xywh[0] * w - 0.5 * xywh[2] * w)
     y1 = int(xywh[1] * h - 0.5 * xywh[3] * h)
     x2 = int(xywh[0] * w + 0.5 * xywh[2] * w)
     y2 = int(xywh[1] * h + 0.5 * xywh[3] * h)
-    cv2.rectangle(img, (x1,y1), (x2, y2), (0,255,0), thickness=tl, lineType=cv2.LINE_AA)
+    cv2.rectangle(img, (x1,y1), (x2, y2), (0,255,0), thickness=tl, lineType=cv2.LINE_AA) #cv2가 무엇인지 알아봐야겠음 
 
     clors = [(255,0,0),(0,255,0),(0,0,255),(255,255,0),(0,255,255)]
 
-    for i in range(5):
+    for i in range(5): #landmarks를 이용해 5개의 point를 만들기 
         point_x = int(landmarks[2 * i] * w)
         point_y = int(landmarks[2 * i + 1] * h)
         cv2.circle(img, (point_x, point_y), tl+1, clors[i], -1)
@@ -76,10 +76,10 @@ def detect_one(model, image_path, device):
     conf_thres = 0.3
     iou_thres = 0.5
 
-    orgimg = cv2.imread(image_path)  # BGR
-    img0 = copy.deepcopy(orgimg)
-    assert orgimg is not None, 'Image Not Found ' + image_path
-    h0, w0 = orgimg.shape[:2]  # orig hw
+    orgimg = cv2.imread(image_path)  # BGR # 아마도 original img
+    img0 = copy.deepcopy(orgimg)   # 원래 이미지를 복제해서 img0에 넣는다. 
+    assert orgimg is not None, 'Image Not Found ' + image_path # orgimg가 없다면 에러 발생 
+    h0, w0 = orgimg.shape[:2]  # orig hw  # height[높이], width[너비] 
     r = img_size / max(h0, w0)  # resize image to img_size
     if r != 1:  # always resize down, only resize up if training with augmentation
         interp = cv2.INTER_AREA if r < 1  else cv2.INTER_LINEAR
@@ -143,6 +143,6 @@ if __name__ == '__main__':
     parser.add_argument('--img-size', type=int, default=640, help='inference size (pixels)')
     opt = parser.parse_args()
     print(opt)
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = load_model(opt.weights, device)
-    detect_one(model, opt.image, device)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # 디바이스 설정 
+    model = load_model(opt.weights, device)# load FP32 model
+    detect_one(model, opt.image, device) 
