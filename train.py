@@ -77,21 +77,21 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
 
     # Model
     pretrained = weights.endswith('.pt')
-    if pretrained:
+    if pretrained: # 미리 훈련된 모델이 있다면 
         with torch_distributed_zero_first(rank):
             attempt_download(weights)  # download if not found locally
-        ckpt = torch.load(weights, map_location=device)  # load checkpoint
+        ckpt = torch.load(weights, map_location=device)  # load checkpoint # state_dict를 불러옴   # state_dict란 각 레이어마다의 매개변수를 tensor형태로 매핑해서 dictionary형태로 저장
         if hyp.get('anchors'):
             ckpt['model'].yaml['anchors'] = round(hyp['anchors'])  # force autoanchor
-        model = Model(opt.cfg or ckpt['model'].yaml, ch=3, nc=nc).to(device)  # create
+        model = Model(opt.cfg or ckpt['model'].yaml, ch=3, nc=nc).to(device)  # create # model 생성 # yolo Model의 자식 생성 
         exclude = ['anchor'] if opt.cfg or hyp.get('anchors') else []  # exclude keys
-        state_dict = ckpt['model'].float().state_dict()  # to FP32
+        state_dict = ckpt['model'].float().state_dict()  # to FP32   # state_dict란 각 레이어마다의 매개변수를 tensor형태로 매핑해서 dictionary형태로 저장
         state_dict = intersect_dicts(state_dict, model.state_dict(), exclude=exclude)  # intersect
         model.load_state_dict(state_dict, strict=False)  # load
-        logger.info('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report
-    else:
-        model = Model(opt.cfg, ch=3, nc=nc).to(device)  # create
-
+        logger.info('Transferred %g/%g items from %s' % (len(state_dict), len(model.state_dict()), weights))  # report # 콘솔에 변경을 출력
+    else: # 미리 훈련된 모델이 없다면 
+        model = Model(opt.cfg, ch=3, nc=nc).to(device)  # create # 새롭게 생성 
+ 
     # Freeze
     freeze = []  # parameter names to freeze (full or partial)
     for k, v in model.named_parameters():
@@ -101,28 +101,28 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
             v.requires_grad = False
 
     # Optimizer
-    nbs = 64  # nominal batch size
+    nbs = 64  # nominal batch size # 배치사이즈는 64
     accumulate = max(round(nbs / total_batch_size), 1)  # accumulate loss before optimizing
     hyp['weight_decay'] *= total_batch_size * accumulate / nbs  # scale weight_decay
 
     pg0, pg1, pg2 = [], [], []  # optimizer parameter groups
     for k, v in model.named_modules():
-        if hasattr(v, 'bias') and isinstance(v.bias, nn.Parameter):
+        if hasattr(v, 'bias') and isinstance(v.bias, nn.Parameter): # hasattr 은 v에 'bias'라는 속성이 존재하는지 확인한다.  # isinstance는 v.bias가 nn.Parameter형인지 확인한다.
             pg2.append(v.bias)  # biases
-        if isinstance(v, nn.BatchNorm2d):
+        if isinstance(v, nn.BatchNorm2d):  # isinstance는 v가 nn.BatchNorm2d인지 확인한다.
             pg0.append(v.weight)  # no decay
-        elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):
+        elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):# hasattr 은 v에 'weight'라는 속성이 존재하는지 확인한다.# isinstance는 v.weight가 nn.Parameter형인지 확인한다.
             pg1.append(v.weight)  # apply decay
 
-    if opt.adam:
+    if opt.adam: # adam이 있다면 옵티마이져는 아담 
         optimizer = optim.Adam(pg0, lr=hyp['lr0'], betas=(hyp['momentum'], 0.999))  # adjust beta1 to momentum
-    else:
+    else: # 없으면 확률적 경사 하강법
         optimizer = optim.SGD(pg0, lr=hyp['lr0'], momentum=hyp['momentum'], nesterov=True)
 
     optimizer.add_param_group({'params': pg1, 'weight_decay': hyp['weight_decay']})  # add pg1 with weight_decay
     optimizer.add_param_group({'params': pg2})  # add pg2 (biases)
-    logger.info('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg2), len(pg1), len(pg0)))
-    del pg0, pg1, pg2
+    logger.info('Optimizer groups: %g .bias, %g conv.weight, %g other' % (len(pg2), len(pg1), len(pg0))) # 옵티마이져와 가중치, 편향등을 콘솔에 알려준다. 
+    del pg0, pg1, pg2 
 
     # Scheduler https://arxiv.org/pdf/1812.01187.pdf
     # https://pytorch.org/docs/stable/_modules/torch/optim/lr_scheduler.html#OneCycleLR
@@ -222,7 +222,7 @@ def train(hyp, opt, device, tb_writer=None, wandb=None):
     model.names = names
 
     # Start training
-    t0 = time.time()
+    t0 = time.time() # 현 시각 측정 
     nw = max(round(hyp['warmup_epochs'] * nb), 1000)  # number of warmup iterations, max(3 epochs, 1k iterations)
     # nw = min(nw, (epochs - start_epoch) / 2 * nb)  # limit warmup to < 1/2 of training
     maps = np.zeros(nc)  # mAP per class
